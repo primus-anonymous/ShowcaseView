@@ -51,41 +51,32 @@ import static com.github.amlcurran.showcaseview.AnimationFactory.AnimationStartL
 public class ShowcaseView extends RelativeLayout
         implements View.OnTouchListener, ShowcaseViewApi {
 
-    private static final int HOLO_BLUE = Color.parseColor("#33B5E5");
     public static final int UNDEFINED = -1;
     public static final int LEFT_OF_SHOWCASE = 0;
     public static final int RIGHT_OF_SHOWCASE = 2;
     public static final int ABOVE_SHOWCASE = 1;
     public static final int BELOW_SHOWCASE = 3;
-
-    @Retention(RetentionPolicy.SOURCE)
-    @IntDef({UNDEFINED, LEFT_OF_SHOWCASE, RIGHT_OF_SHOWCASE, ABOVE_SHOWCASE, BELOW_SHOWCASE})
-    public @interface TextPosition {
-    }
-
-    private Button mEndButton;
+    private static final int HOLO_BLUE = Color.parseColor("#33B5E5");
     private final TextDrawer textDrawer;
-    private ShowcaseDrawer showcaseDrawer;
     private final ShowcaseAreaCalculator showcaseAreaCalculator;
     private final AnimationFactory animationFactory;
     private final ShotStateStore shotStateStore;
-
+    private final int[] positionInWindow = new int[2];
+    private Button mEndButton;
+    private ShowcaseDrawer showcaseDrawer;
     // Showcase metrics
     private int showcaseX = -1;
     private int showcaseY = -1;
     private float scaleMultiplier = 1f;
-
     // Touch items
     private boolean hasCustomClickListener = false;
     private boolean blockTouches = true;
     private boolean hideOnTouch = false;
     private OnShowcaseEventListener mEventListener = OnShowcaseEventListener.NONE;
-
     private boolean hasAlteredText = false;
     private boolean hasNoTarget = false;
     private boolean shouldCentreText;
     private Bitmap bitmapBuffer;
-
     // Animation items
     private long fadeInMillis;
     private long fadeOutMillis;
@@ -93,8 +84,12 @@ public class ShowcaseView extends RelativeLayout
     private int backgroundColor;
     private int showcaseColor;
     private boolean blockAllTouches;
-    private final int[] positionInWindow = new int[2];
-
+    private OnClickListener hideOnClickListener = new OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            hide();
+        }
+    };
     protected ShowcaseView(Context context, boolean newStyle) {
         this(context, null, R.styleable.CustomTheme_showcaseViewStyle, newStyle);
     }
@@ -131,6 +126,23 @@ public class ShowcaseView extends RelativeLayout
         updateStyle(styled, false);
 
         init();
+    }
+
+    private static void insertShowcaseView(ShowcaseView showcaseView, ViewGroup parent, int parentIndex) {
+        parent.addView(showcaseView, parentIndex);
+        if (!showcaseView.hasShot()) {
+            showcaseView.show();
+        } else {
+            showcaseView.hideImmediate();
+        }
+    }
+
+    public void setDrawerBackgroundColor(int drawerBackgroundColor) {
+
+        backgroundColor = drawerBackgroundColor;
+
+        showcaseDrawer.setBackgroundColour(backgroundColor);
+        invalidate();
     }
 
     private void init() {
@@ -224,22 +236,22 @@ public class ShowcaseView extends RelativeLayout
         return (showcaseX != 1000000 && showcaseY != 1000000) && !hasNoTarget;
     }
 
-    public void setShowcaseX(int x) {
-        setShowcasePosition(x, getShowcaseY());
-    }
-
-    public void setShowcaseY(int y) {
-        setShowcasePosition(getShowcaseX(), y);
-    }
-
     public int getShowcaseX() {
         getLocationInWindow(positionInWindow);
         return showcaseX + positionInWindow[0];
     }
 
+    public void setShowcaseX(int x) {
+        setShowcasePosition(x, getShowcaseY());
+    }
+
     public int getShowcaseY() {
         getLocationInWindow(positionInWindow);
         return showcaseY + positionInWindow[1];
+    }
+
+    public void setShowcaseY(int y) {
+        setShowcasePosition(getShowcaseX(), y);
     }
 
     /**
@@ -388,15 +400,6 @@ public class ShowcaseView extends RelativeLayout
         return blocked;
     }
 
-    private static void insertShowcaseView(ShowcaseView showcaseView, ViewGroup parent, int parentIndex) {
-        parent.addView(showcaseView, parentIndex);
-        if (!showcaseView.hasShot()) {
-            showcaseView.show();
-        } else {
-            showcaseView.hideImmediate();
-        }
-    }
-
     private void hideImmediate() {
         isShowing = false;
         setVisibility(GONE);
@@ -426,240 +429,14 @@ public class ShowcaseView extends RelativeLayout
         mEndButton.setVisibility(VISIBLE);
     }
 
-    /**
-     * Builder class which allows easier creation of {@link ShowcaseView}s.
-     * It is recommended that you use this Builder class.
-     */
-    public static class Builder {
+    private void setShowCaseColor(int showCaseColor, boolean buttonTint) {
 
-        private final ShowcaseView showcaseView;
-        private final Activity activity;
+        this.showcaseColor = showCaseColor;
 
-        private ViewGroup parent;
-        private int parentIndex;
+        showcaseDrawer.setShowcaseColour(showCaseColor);
+        tintButton(showCaseColor, buttonTint);
+        invalidate();
 
-        public Builder(Activity activity) {
-            this(activity, false);
-        }
-
-        /**
-         * @param useNewStyle should use "new style" showcase (see {@link #withNewStyleShowcase()}
-         * @deprecated use {@link #withHoloShowcase()}, {@link #withNewStyleShowcase()}, or
-         * {@link #setShowcaseDrawer(ShowcaseDrawer)}
-         */
-        @Deprecated
-        public Builder(Activity activity, boolean useNewStyle) {
-            this.activity = activity;
-            this.showcaseView = new ShowcaseView(activity, useNewStyle);
-            this.showcaseView.setTarget(Target.NONE);
-            this.parent = (ViewGroup) activity.findViewById(android.R.id.content);
-            this.parentIndex = parent.getChildCount();
-        }
-
-        /**
-         * Create the {@link com.github.amlcurran.showcaseview.ShowcaseView} and show it.
-         *
-         * @return the created ShowcaseView
-         */
-        public ShowcaseView build() {
-            insertShowcaseView(showcaseView, parent, parentIndex);
-            return showcaseView;
-        }
-
-        /**
-         * Draw a holo-style showcase. This is the default.<br/>
-         * <img alt="Holo showcase example" src="../../../../../../../../example2.png" />
-         */
-        public Builder withHoloShowcase() {
-            return setShowcaseDrawer(new StandardShowcaseDrawer(activity.getResources(), activity.getTheme()));
-        }
-
-        /**
-         * Draw a new-style showcase.<br/>
-         * <img alt="Holo showcase example" src="../../../../../../../../example.png" />
-         */
-        public Builder withNewStyleShowcase() {
-            return setShowcaseDrawer(new NewShowcaseDrawer(activity.getResources(), activity.getTheme()));
-        }
-
-        /**
-         * Draw a material style showcase.
-         * <img alt="Material showcase" src="../../../../../../../../material.png" />
-         */
-        public Builder withMaterialShowcase() {
-            return setShowcaseDrawer(new MaterialShowcaseDrawer(activity.getResources()));
-        }
-
-        /**
-         * Set a custom showcase drawer which will be responsible for measuring and drawing the showcase
-         */
-        public Builder setShowcaseDrawer(ShowcaseDrawer showcaseDrawer) {
-            showcaseView.setShowcaseDrawer(showcaseDrawer);
-            return this;
-        }
-
-        /**
-         * Set the title text shown on the ShowcaseView.
-         */
-        public Builder setContentTitle(int resId) {
-            return setContentTitle(activity.getString(resId));
-        }
-
-        /**
-         * Set the title text shown on the ShowcaseView.
-         */
-        public Builder setContentTitle(CharSequence title) {
-            showcaseView.setContentTitle(title);
-            return this;
-        }
-
-        /**
-         * Set the descriptive text shown on the ShowcaseView.
-         */
-        public Builder setContentText(int resId) {
-            return setContentText(activity.getString(resId));
-        }
-
-        /**
-         * Set the descriptive text shown on the ShowcaseView.
-         */
-        public Builder setContentText(CharSequence text) {
-            showcaseView.setContentText(text);
-            return this;
-        }
-
-        /**
-         * Set the target of the showcase.
-         *
-         * @param target a {@link com.github.amlcurran.showcaseview.targets.Target} representing
-         *               the item to showcase (e.g., a button, or action item).
-         */
-        public Builder setTarget(Target target) {
-            showcaseView.setTarget(target);
-            return this;
-        }
-
-        /**
-         * Set the style of the ShowcaseView. See the sample app for example styles.
-         */
-        public Builder setStyle(int theme) {
-            showcaseView.setStyle(theme);
-            return this;
-        }
-
-        /**
-         * Set a listener which will override the button clicks.
-         * <p/>
-         * Note that you will have to manually hide the ShowcaseView
-         */
-        public Builder setOnClickListener(OnClickListener onClickListener) {
-            showcaseView.overrideButtonClick(onClickListener);
-            return this;
-        }
-
-        /**
-         * Don't make the ShowcaseView block touches on itself. This doesn't
-         * block touches in the showcased area.
-         * <p/>
-         * By default, the ShowcaseView does block touches
-         */
-        public Builder doNotBlockTouches() {
-            showcaseView.setBlocksTouches(false);
-            return this;
-        }
-
-        /**
-         * Make this ShowcaseView hide when the user touches outside the showcased area.
-         * This enables {@link #doNotBlockTouches()} as well.
-         * <p/>
-         * By default, the ShowcaseView doesn't hide on touch.
-         */
-        public Builder hideOnTouchOutside() {
-            showcaseView.setBlocksTouches(true);
-            showcaseView.setHideOnTouchOutside(true);
-            return this;
-        }
-
-        /**
-         * Set the ShowcaseView to only ever show once.
-         *
-         * @param shotId a unique identifier (<em>across the app</em>) to store
-         *               whether this ShowcaseView has been shown.
-         */
-        public Builder singleShot(long shotId) {
-            showcaseView.setSingleShot(shotId);
-            return this;
-        }
-
-        public Builder setShowcaseEventListener(OnShowcaseEventListener showcaseEventListener) {
-            showcaseView.setOnShowcaseEventListener(showcaseEventListener);
-            return this;
-        }
-
-        public Builder setParent(ViewGroup parent, int index) {
-            this.parent = parent;
-            this.parentIndex = index;
-            return this;
-        }
-
-        /**
-         * Sets the paint that will draw the text as specified by {@link #setContentText(CharSequence)}
-         * or {@link #setContentText(int)}. If you're using a TextAppearance (set by {@link #setStyle(int)},
-         * then this {@link TextPaint} will override that TextAppearance.
-         */
-        public Builder setContentTextPaint(TextPaint textPaint) {
-            showcaseView.setContentTextPaint(textPaint);
-            return this;
-        }
-
-        /**
-         * Sets the paint that will draw the text as specified by {@link #setContentTitle(CharSequence)}
-         * or {@link #setContentTitle(int)}. If you're using a TextAppearance (set by {@link #setStyle(int)},
-         * then this {@link TextPaint} will override that TextAppearance.
-         */
-        public Builder setContentTitlePaint(TextPaint textPaint) {
-            showcaseView.setContentTitlePaint(textPaint);
-            return this;
-        }
-
-        /**
-         * Replace the end button with the one provided. Note that this resets any OnClickListener provided
-         * by {@link #setOnClickListener(OnClickListener)}, so call this method before that one.
-         */
-        public Builder replaceEndButton(Button button) {
-            showcaseView.setEndButton(button);
-            return this;
-        }
-
-        /**
-         * Replace the end button with the one provided. Note that this resets any OnClickListener provided
-         * by {@link #setOnClickListener(OnClickListener)}, so call this method before that one.
-         */
-        public Builder replaceEndButton(int buttonResourceId) {
-            View view = LayoutInflater.from(activity).inflate(buttonResourceId, showcaseView, false);
-            if (!(view instanceof Button)) {
-                throw new IllegalArgumentException("Attempted to replace showcase button with a layout which isn't a button");
-            }
-            return replaceEndButton((Button) view);
-        }
-
-        /**
-         * Block any touch made on the ShowcaseView, even inside the showcase
-         */
-        public Builder blockAllTouches() {
-            showcaseView.setBlockAllTouches(true);
-            return this;
-        }
-
-        /**
-         * Uses the android decor view to insert a showcase, this is not recommended
-         * as then UI elements in showcase view can hide behind the nav bar
-         */
-        public Builder useDecorViewAsParent() {
-            this.parent = ((ViewGroup) activity.getWindow().getDecorView());
-            this.parentIndex = -1;
-            return this;
-        }
     }
 
     private void setEndButton(Button button) {
@@ -822,11 +599,263 @@ public class ShowcaseView extends RelativeLayout
         }
     }
 
-    private OnClickListener hideOnClickListener = new OnClickListener() {
-        @Override
-        public void onClick(View v) {
-            hide();
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef({UNDEFINED, LEFT_OF_SHOWCASE, RIGHT_OF_SHOWCASE, ABOVE_SHOWCASE, BELOW_SHOWCASE})
+    public @interface TextPosition {
+    }
+
+    /**
+     * Builder class which allows easier creation of {@link ShowcaseView}s.
+     * It is recommended that you use this Builder class.
+     */
+    public static class Builder {
+
+        private final ShowcaseView showcaseView;
+        private final Activity activity;
+
+        private ViewGroup parent;
+        private int parentIndex;
+
+        public Builder(Activity activity) {
+            this(activity, false);
         }
-    };
+
+        /**
+         * @param useNewStyle should use "new style" showcase (see {@link #withNewStyleShowcase()}
+         * @deprecated use {@link #withHoloShowcase()}, {@link #withNewStyleShowcase()}, or
+         * {@link #setShowcaseDrawer(ShowcaseDrawer)}
+         */
+        @Deprecated
+        public Builder(Activity activity, boolean useNewStyle) {
+            this.activity = activity;
+            this.showcaseView = new ShowcaseView(activity, useNewStyle);
+            this.showcaseView.setTarget(Target.NONE);
+            this.parent = (ViewGroup) activity.findViewById(android.R.id.content);
+            this.parentIndex = parent.getChildCount();
+        }
+
+        /**
+         * Create the {@link com.github.amlcurran.showcaseview.ShowcaseView} and show it.
+         *
+         * @return the created ShowcaseView
+         */
+        public ShowcaseView build() {
+            insertShowcaseView(showcaseView, parent, parentIndex);
+            return showcaseView;
+        }
+
+        /**
+         * Draw a holo-style showcase. This is the default.<br/>
+         * <img alt="Holo showcase example" src="../../../../../../../../example2.png" />
+         */
+        public Builder withHoloShowcase() {
+            return setShowcaseDrawer(new StandardShowcaseDrawer(activity.getResources(), activity.getTheme()));
+        }
+
+        /**
+         * Draw a new-style showcase.<br/>
+         * <img alt="Holo showcase example" src="../../../../../../../../example.png" />
+         */
+        public Builder withNewStyleShowcase() {
+            return setShowcaseDrawer(new NewShowcaseDrawer(activity.getResources(), activity.getTheme()));
+        }
+
+        /**
+         * Draw a material style showcase.
+         * <img alt="Material showcase" src="../../../../../../../../material.png" />
+         */
+        public Builder withMaterialShowcase() {
+            return setShowcaseDrawer(new MaterialShowcaseDrawer(activity.getResources()));
+        }
+
+        /**
+         * Set a custom showcase drawer which will be responsible for measuring and drawing the showcase
+         */
+        public Builder setShowcaseDrawer(ShowcaseDrawer showcaseDrawer) {
+            showcaseView.setShowcaseDrawer(showcaseDrawer);
+            return this;
+        }
+
+        /**
+         * Set the title text shown on the ShowcaseView.
+         */
+        public Builder setContentTitle(int resId) {
+            return setContentTitle(activity.getString(resId));
+        }
+
+        /**
+         * Set the title text shown on the ShowcaseView.
+         */
+        public Builder setContentTitle(CharSequence title) {
+            showcaseView.setContentTitle(title);
+            return this;
+        }
+
+        /**
+         * Set the descriptive text shown on the ShowcaseView.
+         */
+        public Builder setContentText(int resId) {
+            return setContentText(activity.getString(resId));
+        }
+
+        /**
+         * Set the descriptive text shown on the ShowcaseView.
+         */
+        public Builder setContentText(CharSequence text) {
+            showcaseView.setContentText(text);
+            return this;
+        }
+
+        /**
+         * Set the target of the showcase.
+         *
+         * @param target a {@link com.github.amlcurran.showcaseview.targets.Target} representing
+         *               the item to showcase (e.g., a button, or action item).
+         */
+        public Builder setTarget(Target target) {
+            showcaseView.setTarget(target);
+            return this;
+        }
+
+        /**
+         * Set the style of the ShowcaseView. See the sample app for example styles.
+         */
+        public Builder setStyle(int theme) {
+            showcaseView.setStyle(theme);
+            return this;
+        }
+
+
+        /**
+         * Set the background color of the ShowcaseView.
+         */
+        public Builder setBackgroundColor(int backgroundColor) {
+            showcaseView.setDrawerBackgroundColor(backgroundColor);
+            return this;
+        }
+
+
+        /**
+         * Set the background color of the show case.
+         */
+        public Builder setShowCaseColor(int showCaseColor, boolean buttonTint) {
+            showcaseView.setShowCaseColor(showCaseColor, buttonTint);
+            return this;
+        }
+
+        /**
+         * Set a listener which will override the button clicks.
+         * <p/>
+         * Note that you will have to manually hide the ShowcaseView
+         */
+        public Builder setOnClickListener(OnClickListener onClickListener) {
+            showcaseView.overrideButtonClick(onClickListener);
+            return this;
+        }
+
+        /**
+         * Don't make the ShowcaseView block touches on itself. This doesn't
+         * block touches in the showcased area.
+         * <p/>
+         * By default, the ShowcaseView does block touches
+         */
+        public Builder doNotBlockTouches() {
+            showcaseView.setBlocksTouches(false);
+            return this;
+        }
+
+        /**
+         * Make this ShowcaseView hide when the user touches outside the showcased area.
+         * This enables {@link #doNotBlockTouches()} as well.
+         * <p/>
+         * By default, the ShowcaseView doesn't hide on touch.
+         */
+        public Builder hideOnTouchOutside() {
+            showcaseView.setBlocksTouches(true);
+            showcaseView.setHideOnTouchOutside(true);
+            return this;
+        }
+
+        /**
+         * Set the ShowcaseView to only ever show once.
+         *
+         * @param shotId a unique identifier (<em>across the app</em>) to store
+         *               whether this ShowcaseView has been shown.
+         */
+        public Builder singleShot(long shotId) {
+            showcaseView.setSingleShot(shotId);
+            return this;
+        }
+
+        public Builder setShowcaseEventListener(OnShowcaseEventListener showcaseEventListener) {
+            showcaseView.setOnShowcaseEventListener(showcaseEventListener);
+            return this;
+        }
+
+        public Builder setParent(ViewGroup parent, int index) {
+            this.parent = parent;
+            this.parentIndex = index;
+            return this;
+        }
+
+        /**
+         * Sets the paint that will draw the text as specified by {@link #setContentText(CharSequence)}
+         * or {@link #setContentText(int)}. If you're using a TextAppearance (set by {@link #setStyle(int)},
+         * then this {@link TextPaint} will override that TextAppearance.
+         */
+        public Builder setContentTextPaint(TextPaint textPaint) {
+            showcaseView.setContentTextPaint(textPaint);
+            return this;
+        }
+
+        /**
+         * Sets the paint that will draw the text as specified by {@link #setContentTitle(CharSequence)}
+         * or {@link #setContentTitle(int)}. If you're using a TextAppearance (set by {@link #setStyle(int)},
+         * then this {@link TextPaint} will override that TextAppearance.
+         */
+        public Builder setContentTitlePaint(TextPaint textPaint) {
+            showcaseView.setContentTitlePaint(textPaint);
+            return this;
+        }
+
+        /**
+         * Replace the end button with the one provided. Note that this resets any OnClickListener provided
+         * by {@link #setOnClickListener(OnClickListener)}, so call this method before that one.
+         */
+        public Builder replaceEndButton(Button button) {
+            showcaseView.setEndButton(button);
+            return this;
+        }
+
+        /**
+         * Replace the end button with the one provided. Note that this resets any OnClickListener provided
+         * by {@link #setOnClickListener(OnClickListener)}, so call this method before that one.
+         */
+        public Builder replaceEndButton(int buttonResourceId) {
+            View view = LayoutInflater.from(activity).inflate(buttonResourceId, showcaseView, false);
+            if (!(view instanceof Button)) {
+                throw new IllegalArgumentException("Attempted to replace showcase button with a layout which isn't a button");
+            }
+            return replaceEndButton((Button) view);
+        }
+
+        /**
+         * Block any touch made on the ShowcaseView, even inside the showcase
+         */
+        public Builder blockAllTouches() {
+            showcaseView.setBlockAllTouches(true);
+            return this;
+        }
+
+        /**
+         * Uses the android decor view to insert a showcase, this is not recommended
+         * as then UI elements in showcase view can hide behind the nav bar
+         */
+        public Builder useDecorViewAsParent() {
+            this.parent = ((ViewGroup) activity.getWindow().getDecorView());
+            this.parentIndex = -1;
+            return this;
+        }
+    }
 
 }

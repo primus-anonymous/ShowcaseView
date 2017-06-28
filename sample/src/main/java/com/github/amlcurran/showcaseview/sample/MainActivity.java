@@ -20,6 +20,7 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -76,9 +77,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .setTarget(target)
                 .setContentTitle(R.string.showcase_main_title)
                 .setContentText(R.string.showcase_main_message)
-                .setStyle(R.style.CustomShowcaseTheme2)
+                .setStyle(R.style.CustomShowcaseTheme3)
+                .setBackgroundColor(Color.GREEN)
+                .setShowCaseColor(Color.RED, true)
                 .setShowcaseEventListener(this)
-                .replaceEndButton(R.layout.view_custom_button)
+                //.replaceEndButton(R.layout.view_custom_button)
                 .build();
         sv.setButtonPosition(lps);
     }
